@@ -17,27 +17,31 @@
 # limitations under the License.
 #
 
+source_dir  = "/tmp"
+policy_dir  = "#{source_dir}/UnlimitedJCEPolicy"
 jdk_version = node['java']['jdk_version']
 java_home   = node['java']['java_home']
-source_dir  = "/usr/local/src"
 
-if jdk_version.to_i >= 7
-  Chef::Log.error("Java JDK 7 is not yet supported by the JCE Policy recipe")
+if jdk_version.to_i != 7
+  Chef::Log.error("Only Java JDK 7 is supported by the JCE Policy recipe")
 end
 
 bash "extract-jce-policy" do
-  cwd "/tmp"
+  cwd source_dir
   code <<-EOH
-    unzip -u "#{source_dir}/jce-policy-#{jdk_version}.zip"
-    if ! [ -e "#{java_home}/jre/lib/security/local_policy.jar.bak" ]
-    then
-      cp "#{java_home}/jre/lib/security/local_policy.jar" "#{java_home}/jre/lib/security/local_policy.jar.bak"
+    set -e
+
+    # This unzip creates the directory named in policy_dir variable
+    unzip jce-policy-#{jdk_version}.zip
+
+    cd "#{java_home}/jre/lib/security"
+    if ! [ -e "local_policy.jar.bak" ]; then
+      cp local_policy.jar local_policy.jar.bak
     fi
-    if ! [ -e  "#{java_home}/jre/lib/security/US_export_policy.jar.bak" ]
-    then
-      cp "#{java_home}/jre/lib/security/US_export_policy.jar" "#{java_home}/jre/lib/security/US_export_policy.jar.bak"
+    if ! [ -e "US_export_policy.jar.bak" ]; then
+      cp US_export_policy.jar US_export_policy.jar.bak
     fi
-    mv jce/*.jar "#{java_home}/jre/lib/security/"
+    cp "#{policy_dir}/local_policy.jar" "#{policy_dir}/US_export_policy.jar" .
   EOH
   action :nothing
 end
